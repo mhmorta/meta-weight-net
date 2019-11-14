@@ -23,7 +23,7 @@ import numpy as np
 from load_corrupted_data import CIFAR10, CIFAR100
 
 from data import build_dataset, build_dataset_continual
-from trainer import train_weighted
+from trainer import train
 
 parser = argparse.ArgumentParser(description='PyTorch WideResNet Training')
 parser.add_argument('--dataset', default='cifar10', type=str,
@@ -63,6 +63,8 @@ parser.add_argument('--name', default='WideResNet-28-10', type=str,
                     help='name of experiment')
 parser.add_argument('--seed', type=int, default=1)
 parser.add_argument('--prefetch', type=int, default=0, help='Pre-fetching threads.')
+parser.add_argument('--training-mode', default='plain', type=str,
+                    help='training mode (plain | continual | weighted)')
 parser.set_defaults(augment=True)
 
 #os.environ['CUD_DEVICE_ORDER'] = "1"
@@ -85,18 +87,19 @@ def main():
     data_loaders = [train_loaders, train_meta_loader, test_loader]
 
 
-    meta_model_loss, model_loss, accuracy_log, train_acc =train_weighted(args, data_loaders)
+    meta_model_loss, model_loss, accuracy_log, train_acc =train(args, data_loaders)
 
     #np.save('meta_model_loss_%s_%s.npy' % (args.dataset, args.label_corrupt_prob), meta_model_loss)
     #np.save('model_loss_%s_%s.npy' % (args.dataset, args.label_corrupt_prob), model_loss)
     fig, axes = plt.subplots(1, 3, figsize=(13, 5))
     ax1, ax2, ax3 = axes.ravel()
 
-    ax1.plot(meta_model_loss, label='meta_model_loss')
-    ax1.plot(model_loss, label='model_loss')
-    ax1.set_ylabel("Losses")
-    ax1.set_xlabel("Iteration")
-    ax1.legend()
+    if meta_model_loss is not None:
+        ax1.plot(meta_model_loss, label='meta_model_loss')
+        ax1.plot(model_loss, label='model_loss')
+        ax1.set_ylabel("Losses")
+        ax1.set_xlabel("Iteration")
+        ax1.legend()
 
     acc_log = np.concatenate(accuracy_log, axis=0)
     train_acc_log = np.concatenate(train_acc, axis=0)

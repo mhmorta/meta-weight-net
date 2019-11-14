@@ -9,10 +9,16 @@ from data import build_dataset, build_dataset_continual
 from models.wideresnet import VNet
 from log import accuracy, AverageMeter
 
-best_prec1 = 0
+def train(args, data_loaders):
+    if args.training_mode == "weighted":
+        return train_weighted(args, data_loaders)
+    elif args.training_mode == "continual":
+        return train_continual(args, data_loaders)
+    else:
+        return train_plain(args, data_loaders)
 
-def train_weighted(args, data_loaders ):
-    global best_prec1
+def train_weighted(args, data_loaders):
+    best_prec1 = 0
     # create model
     train_loaders, train_meta_loader, test_loader = data_loaders 
 
@@ -159,6 +165,97 @@ def train_weighted(args, data_loaders ):
                 best_prec1 = max(top1_test.avg, best_prec1)
     return meta_model_loss, model_loss, accuracy_log, train_acc
         
+def train_plain(args, data_loaders ):
+    best_prec1 = 0
+    # create model
+    train_loaders, train_meta_loader, test_loader = data_loaders 
+
+    model = build_model(args)
+
+    optimizer_a = torch.optim.SGD(model.params(), args.lr,
+                                  momentum=args.momentum, nesterov=args.nesterov,
+                                  weight_decay=args.weight_decay)
+
+    cudnn.benchmark = True
+
+    # define loss function (criterion) and optimizer
+    criterion = nn.CrossEntropyLoss().cuda()
+
+
+    model_loss = []
+    # meta_model_loss = []
+    smoothing_alpha = 0.9
+
+    meta_l = 0
+    net_l = 0
+    accuracy_log = []
+    train_acc = []
+
+    for train_loader in train_loaders:
+        for iters in range(args.iters):
+            adjust_learning_rate(args, optimizer_a, iters + 1)
+            model.train()
+
+            input, target = next(iter(train_loader))
+            input_var = to_var(input, requires_grad=False)
+            target_var = to_var(target, requires_grad=False)
+
+            y_f = model(input_var)
+            cost_w = F.cross_entropy(y_f, target_var, reduce=False)
+            cost_v = torch.reshape(cost_w, (len(cost_w), 1))
+            prec_train = accuracy(y_f.data, target_var.data, topk=(1,))[0]
+
+            l_f = torch.sum(cost_v)
+
+
+            optimizer_a.zero_grad()
+            l_f.backward()
+            optimizer_a.step()
+
+            # meta_l = smoothing_alpha * meta_l + (1 - smoothing_alpha) * l_g_meta.item()
+            # meta_model_loss.append(meta_l / (1 - smoothing_alpha ** (iters + 1)))
+
+            net_l = smoothing_alpha * net_l + (1 - smoothing_alpha) * l_f.item()
+            model_loss.append(net_l / (1 - smoothing_alpha ** (iters + 1)))
+
+
+            if (iters + 1) % 100 == 0:
+                print('Epoch: [%d/%d]\t'
+                    'Iters: [%d/%d]\t'
+                    'Loss: %.4f\t'
+                    'Prec@1 %.2f\t' % (
+                        (iters + 1) // 500 + 1, args.epochs, iters + 1, args.iters, model_loss[iters], prec_train))
+                        
+
+                losses_test = AverageMeter()
+                top1_test = AverageMeter()
+                model.eval()
+
+
+                for i, (input_test, target_test) in enumerate(test_loader):
+                    input_test_var = to_var(input_test, requires_grad=False)
+                    target_test_var = to_var(target_test, requires_grad=False)
+
+                    # compute output
+                    with torch.no_grad():
+                        output_test = model(input_test_var)
+                    loss_test = criterion(output_test, target_test_var)
+                    prec_test = accuracy(output_test.data, target_test_var.data, topk=(1,))[0]
+
+                    losses_test.update(loss_test.data.item(), input_test_var.size(0))
+                    top1_test.update(prec_test.item(), input_test_var.size(0))
+
+                print(' * Prec@1 {top1.avg:.3f}'.format(top1=top1_test))
+
+                accuracy_log.append(np.array([iters, top1_test.avg])[None])
+                train_acc.append(np.array([iters, prec_train])[None])
+
+                best_prec1 = max(top1_test.avg, best_prec1)
+
+    return None, model_loss, accuracy_log, train_acc
+
+def train_continual(args, data_loaders):
+    pass
 
 def adjust_learning_rate(args, optimizer, iters):
 
