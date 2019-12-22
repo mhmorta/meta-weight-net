@@ -5,6 +5,8 @@ import math
 from torch.autograd import Variable
 import torch.nn.init as init
 
+from exemplars import ExemplarHandler
+
 
 def to_var(x, requires_grad=True):
     if torch.cuda.is_available():
@@ -237,7 +239,7 @@ class BasicBlock(MetaModule):
         return out
 
 
-class ResNet32(MetaModule):
+class ResNet32(MetaModule, ExemplarHandler ):
     def __init__(self, num_classes, block=BasicBlock, num_blocks=[5, 5, 5]):
         super(ResNet32, self).__init__()
         self.in_planes = 16

@@ -2,7 +2,7 @@ import abc
 import torch
 from torch import nn
 from torch.nn import functional as F
-import utils
+# import utils
 import copy
 import numpy as np
 
@@ -31,9 +31,9 @@ class ExemplarHandler(nn.Module, metaclass=abc.ABCMeta):
     def _is_on_cuda(self):
         return next(self.parameters()).is_cuda
 
-    @abc.abstractmethod
-    def feature_extractor(self, images):
-        pass
+    # @abc.abstractmethod
+    # def feature_extractor(self, images):
+    #     pass
 
 
     ####----MANAGING EXEMPLAR SETS----####
@@ -98,6 +98,7 @@ class ExemplarHandler(nn.Module, metaclass=abc.ABCMeta):
             #
             #     # make sure this example won't be selected again
             #     features[index_selected] = features[index_selected] + 10000
+            pass
         else:
             indeces_selected = np.random.choice(n_max, size=min(n, n_max), replace=False)
             for k in indeces_selected:

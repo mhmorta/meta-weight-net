@@ -3,6 +3,9 @@ import numpy as np
 from torchvision import datasets, transforms
 from torch.utils.data import ConcatDataset, Dataset
 import torch
+from torch.utils.data.sampler import SubsetRandomSampler
+from torch.utils.data import DataLoader
+from torch.utils.data.dataloader import default_collate
 
 
 def _permutate_image_pixels(image, permutation):
@@ -235,3 +238,26 @@ def get_multitask_experiment(name, scenario, tasks, data_dir="./datasets", only_
 
     # Return tuple of train-, validation- and test-dataset, config-dictionary and number of classes per task
     return config if only_config else ((train_datasets, test_datasets), config, classes_per_task)
+
+
+def get_data_loader(dataset, batch_size, cuda=False, collate_fn=None, drop_last=False, augment=False, sampler= None, shuffle=True):
+    '''Return <DataLoader>-object for the provided <DataSet>-object [dataset].'''
+
+    # If requested, make copy of original dataset to add augmenting transform (without altering original dataset)
+    if augment:
+        dataset_ = copy.deepcopy(dataset)
+        dataset_.transform = transforms.Compose([dataset.transform, *data.AVAILABLE_TRANSFORMS['augment']])
+    else:
+        dataset_ = dataset
+
+    # Create and return the <DataLoader>-object
+    return DataLoader(
+        dataset_, batch_size=batch_size, shuffle=shuffle, sampler=sampler,
+        collate_fn=(collate_fn or default_collate), drop_last=drop_last,
+        **({'num_workers': 0, 'pin_memory': True} if cuda else {})
+    )
+
+def cycle(iterable):
+    while True:
+        for x in iterable:
+            yield x
