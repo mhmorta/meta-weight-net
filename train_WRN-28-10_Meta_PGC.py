@@ -27,6 +27,7 @@ from torchsummary import summary
 from wideresnet import WideResNet, VNet
 from resnet import ResNet32,VNet
 from data import build_dataset
+from data_cl import get_multitask_experiment
 
 parser = argparse.ArgumentParser(description='PyTorch WideResNet Training')
 parser.add_argument('--dataset', default='cifar10', type=str,
@@ -66,6 +67,12 @@ parser.add_argument('--name', default='WideResNet-28-10', type=str,
                     help='name of experiment')
 parser.add_argument('--seed', type=int, default=1)
 parser.add_argument('--prefetch', type=int, default=0, help='Pre-fetching threads.')
+
+parser.add_argument('--experiment', type=str, default='splitCIFAR10', choices=['permMNIST', 'splitMNIST', 'splitCIFAR10', 'splitFashionMNIST'])
+parser.add_argument('--scenario', type=str, default='class', choices=['task', 'domain', 'class'])
+parser.add_argument('--data-dir', type=str, default='./datasets', dest='d_dir', help="default: %(default)s")
+parser.add_argument('--tasks', type=int, default=5, help='number of tasks')
+
 parser.set_defaults(augment=True)
 
 #os.environ['CUD_DEVICE_ORDER'] = "1"
@@ -83,6 +90,12 @@ def main():
     args = parser.parse_args()
     print()
     print(args)
+
+    # Prepare data for chosen experiment
+    (train_datasets, test_datasets), config, classes_per_task = get_multitask_experiment(
+        name=args.experiment, scenario=args.scenario, tasks=args.tasks, data_dir=args.d_dir,
+        verbose=True, exception=True if args.seed==0 else False,
+    )
 
     train_loader, train_meta_loader, test_loader = build_dataset(args)
     # create model
