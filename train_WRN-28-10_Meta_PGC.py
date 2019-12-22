@@ -73,6 +73,15 @@ parser.add_argument('--scenario', type=str, default='class', choices=['task', 'd
 parser.add_argument('--data-dir', type=str, default='./datasets', dest='d_dir', help="default: %(default)s")
 parser.add_argument('--tasks', type=int, default=5, help='number of tasks')
 
+# exemplar parameters
+icarl_params = parser.add_argument_group('Exemplar Parameters')
+icarl_params.add_argument('--icarl', action='store_true', help="bce-distill, use-exemplars & add-exemplars")
+icarl_params.add_argument('--use-exemplars', action='store_true', help="use exemplars for classification")
+icarl_params.add_argument('--add-exemplars', action='store_true', help="add exemplars to current task dataset")
+icarl_params.add_argument('--budget', type=int, default=2000, dest="budget", help="how many exemplars can be stored?")
+icarl_params.add_argument('--herding', action='store_true', help="use herding to select exemplars (instead of random)")
+icarl_params.add_argument('--norm-exemplars', action='store_true', help="normalize features/averages of exemplars")
+
 parser.set_defaults(augment=True)
 
 #os.environ['CUD_DEVICE_ORDER'] = "1"
