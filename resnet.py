@@ -286,7 +286,7 @@ class VNet(MetaModule):
         # x = self.linear2(x)
         # x = self.relu1(x)
         out = self.linear2(x)
-        return F.sigmoid(out)
+        return torch.sigmoid(out)
 
 
 

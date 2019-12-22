@@ -22,6 +22,7 @@ import pandas as pd
 import sklearn.metrics as sm
 import random
 import numpy as np
+from torchsummary import summary
 
 from wideresnet import WideResNet, VNet
 from resnet import ResNet32,VNet
@@ -86,6 +87,8 @@ def main():
     train_loader, train_meta_loader, test_loader = build_dataset()
     # create model
     model = build_model()
+    summary(model, input_size=(3, 32, 32))
+
     optimizer_a = torch.optim.SGD(model.params(), args.lr,
                                   momentum=args.momentum, nesterov=args.nesterov,
                                   weight_decay=args.weight_decay)
@@ -115,7 +118,7 @@ def main():
         adjust_learning_rate(optimizer_a, iters + 1)
         # adjust_learning_rate(optimizer_c, iters + 1)
         model.train()
-
+        # ----------- Updating meta-model -----------
         input, target = next(iter(train_loader))
         input_var = to_var(input, requires_grad=False)
         target_var = to_var(target, requires_grad=False)
@@ -145,7 +148,7 @@ def main():
         meta_model.update_params(lr_inner=meta_lr,source_params=grads)
         del grads
 
-
+        # ----------- Updating  vnet model -----------
 
         input_validation, target_validation = next(iter(train_meta_loader))
         input_validation_var = to_var(input_validation, requires_grad=False)
@@ -160,6 +163,7 @@ def main():
         l_g_meta.backward()
         optimizer_c.step()
 
+        # ----------- Updating  the actual model -----------
 
         y_f = model(input_var)
         cost_w = F.cross_entropy(y_f, target_var, reduce=False)
